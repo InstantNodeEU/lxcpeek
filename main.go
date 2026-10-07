@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
+	"io/fs"
 	"flag"
 	"fmt"
 	"os"
@@ -39,6 +41,9 @@ func main() {
 	if *once {
 		if err := printOnce(*interval, *asJSON); err != nil {
 			fmt.Fprintln(os.Stderr, "lxcpeek:", err)
+			if errors.Is(err, fs.ErrPermission) {
+				fmt.Fprintln(os.Stderr, "lxcpeek: run it as root")
+			}
 			os.Exit(1)
 		}
 		return
