@@ -29,9 +29,10 @@ can tell you, one guest at a time. lxcpeek tells you in one screen.
   destinations, top incoming ports. A scanner looks very different from a
   web server.
 
-A guest is marked hot when CPU (or memory, containers only) is at 90% of its
-allotment, it sends
-more than 20k packets/s or has more than 1000 outgoing connections.
+A guest is marked hot when CPU (or memory, containers only) is at 90% of
+its allotment, it sends more than 20k packets/s or has more than 1000
+outgoing connections. VM memory is never flagged: QEMU keeps every page the
+guest ever touched, so from the host almost every VM looks full.
 
 ## How it works
 
