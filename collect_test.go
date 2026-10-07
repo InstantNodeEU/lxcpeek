@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -40,9 +42,11 @@ func fakeNode(t *testing.T) string {
 	write(t, d+"/proc/meminfo", "MemTotal: 1000 kB\nMemAvailable: 250 kB\n")
 	write(t, d+"/proc/sys/net/netfilter/nf_conntrack_count", "3\n")
 	write(t, d+"/proc/sys/net/netfilter/nf_conntrack_max", "262144\n")
+	// CT 101 scans telnet: one SYN to each of 1000 hosts
 	var ct string
-	for range hotConns {
-		ct += "ipv4 2 tcp 6 10 SYN_SENT src=94.249.230.50 dst=10.9.9.9 sport=1 dport=23 [UNREPLIED] src=10.9.9.9 dst=94.249.230.50 sport=23 dport=1 mark=0 use=1\n"
+	for i := range hotConns {
+		dst := fmt.Sprintf("10.9.%d.%d", i/250, i%250+1)
+		ct += "ipv4 2 tcp 6 10 SYN_SENT src=94.249.230.50 dst=" + dst + " sport=1 dport=23 [UNREPLIED] src=" + dst + " dst=94.249.230.50 sport=23 dport=1 mark=0 use=1\n"
 	}
 	ct += "ipv4 2 tcp 6 10 ESTABLISHED src=8.8.8.8 dst=94.249.230.60 sport=1 dport=3389 src=94.249.230.60 dst=8.8.8.8 sport=3389 dport=1 mark=0 use=1\n"
 	write(t, d+"/proc/net/nf_conntrack", ct)
@@ -101,10 +105,23 @@ func TestCollect(t *testing.T) {
 		t.Errorf("host = %+v", snap)
 	}
 
-	rep := connReport(ct.IPs)
-	for _, want := range []string{"1000 outgoing", "tcp/23", "10.9.9.9"} {
-		if !strings.Contains(rep, want) {
-			t.Errorf("report missing %q:\n%s", want, rep)
+	sum, err := summarize(ct.IPs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sum.Out != hotConns || len(sum.Ports) != 1 || sum.Ports[0].Peers != hotConns || verdict(sum.Ports[0]) != "scan?" {
+		t.Errorf("summary = %+v", sum)
+	}
+
+	var b bytes.Buffer
+	report(&b, snap, time.Second, newANSI(false), false, map[int]connSummary{101: sum})
+	out := b.String()
+	for _, want := range []string{"Hot (1)", "1000 connections out", "tcp/23 (telnet) 100% scan?", "262k"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("report missing %q:\n%s", want, out)
 		}
+	}
+	if strings.Contains(out, "\x1b") {
+		t.Error("escape codes without color")
 	}
 }

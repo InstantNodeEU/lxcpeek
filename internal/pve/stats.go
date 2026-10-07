@@ -185,3 +185,22 @@ func HostMem() (total, used uint64) {
 	}
 	return total, total - min(avail, total)
 }
+
+// HostLoad returns the 1, 5 and 15 minute load averages.
+func HostLoad() (l [3]float64) {
+	f := strings.Fields(readString(filepath.Join(Proc, "loadavg")))
+	for i := 0; i < 3 && i < len(f); i++ {
+		l[i], _ = strconv.ParseFloat(f[i], 64)
+	}
+	return l
+}
+
+// HostUptime returns seconds since boot.
+func HostUptime() float64 {
+	f := strings.Fields(readString(filepath.Join(Proc, "uptime")))
+	if len(f) == 0 {
+		return 0
+	}
+	u, _ := strconv.ParseFloat(f[0], 64)
+	return u
+}

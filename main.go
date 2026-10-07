@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"text/tabwriter"
 	"time"
 
 	"github.com/instantnodeeu/lxcpeek/internal/pve"
@@ -16,10 +15,15 @@ import (
 var version = "dev"
 
 func main() {
-	interval := flag.Duration("d", 2*time.Second, "refresh interval")
-	once := flag.Bool("once", false, "print one table and exit (sampled over -d)")
+	interval := flag.Duration("d", 2*time.Second, "refresh interval, with -once how long to sample")
+	once := flag.Bool("once", false, "print a report and exit")
+	hotOnly := flag.Bool("hot", false, "with -once: only hot guests, exit status 2 if there are any")
 	asJSON := flag.Bool("json", false, "with -once: print JSON")
 	showVersion := flag.Bool("v", false, "print version and exit")
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "lxcpeek %s, top for Proxmox VE guests\n\nusage: lxcpeek [flags]\n\n", version)
+		flag.PrintDefaults()
+	}
 	flag.Parse()
 
 	if *showVersion {
@@ -39,56 +43,68 @@ func main() {
 	}
 
 	if *once {
-		if err := printOnce(*interval, *asJSON); err != nil {
+		hot, err := printOnce(*interval, *asJSON, *hotOnly)
+		if err != nil {
 			fmt.Fprintln(os.Stderr, "lxcpeek:", err)
 			if errors.Is(err, fs.ErrPermission) {
 				fmt.Fprintln(os.Stderr, "lxcpeek: run it as root")
 			}
 			os.Exit(1)
 		}
+		if *hotOnly && hot > 0 {
+			os.Exit(2)
+		}
 		return
 	}
-	if err := newApp(*interval).Run(); err != nil {
+	if err := newApp(*interval).start(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
-func printOnce(d time.Duration, asJSON bool) error {
+// printOnce samples for d, prints the report and returns the number of
+// hot guests.
+func printOnce(d time.Duration, asJSON, hotOnly bool) (int, error) {
 	var c collector
 	if _, err := c.collect(); err != nil {
-		return err
+		return 0, err
 	}
 	time.Sleep(d)
 	snap, err := c.collect()
 	if err != nil {
-		return err
+		return 0, err
 	}
 	sortGuests(snap.Guests, byCPU, false)
+
+	hot := 0
+	details := map[int]connSummary{}
+	for _, g := range snap.Guests {
+		if len(g.Hot) == 0 {
+			continue
+		}
+		hot++
+		// ponytail: one conntrack pass per hot guest, fine while hot is rare
+		if len(g.IPs) > 0 && hot <= 10 && snap.CTErr == "" {
+			if s, err := summarize(g.IPs); err == nil {
+				details[g.ID] = s
+			}
+		}
+	}
+
 	if asJSON {
+		if hotOnly {
+			var hs []guestStat
+			for _, g := range snap.Guests {
+				if len(g.Hot) > 0 {
+					hs = append(hs, g)
+				}
+			}
+			snap.Guests = hs
+		}
 		e := json.NewEncoder(os.Stdout)
 		e.SetIndent("", "  ")
-		return e.Encode(snap)
+		return hot, e.Encode(snap)
 	}
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	for i, h := range headers {
-		if i > 0 {
-			fmt.Fprint(w, "\t")
-		}
-		fmt.Fprint(w, h)
-	}
-	fmt.Fprintln(w)
-	for _, g := range snap.Guests {
-		for i, c := range cells(g) {
-			if i > 0 {
-				fmt.Fprint(w, "\t")
-			}
-			fmt.Fprint(w, c)
-		}
-		fmt.Fprintln(w)
-	}
-	if snap.CTErr != "" {
-		fmt.Fprintln(w, "\nconnections:", snap.CTErr, "(run as root)")
-	}
-	return w.Flush()
+	report(os.Stdout, snap, d, newANSI(colorOK()), hotOnly, details)
+	return hot, nil
 }

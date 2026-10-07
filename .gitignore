@@ -1,3 +1,5 @@
 /lxcpeek
 /dist/
 *.test
+.shots/
+shots_test.go

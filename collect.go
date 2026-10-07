@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/netip"
+	"os"
 	"runtime"
 	"sort"
 	"time"
@@ -34,6 +35,38 @@ type guestStat struct {
 	Hot      []string `json:"hot,omitempty"`
 }
 
+func (s snapshot) memPct() float64 {
+	if s.HostTotal == 0 {
+		return 0
+	}
+	return float64(s.HostMem) / float64(s.HostTotal) * 100
+}
+
+func (s snapshot) ctPct() float64 {
+	if s.CTMax == 0 {
+		return 0
+	}
+	return float64(s.CTCount) / float64(s.CTMax) * 100
+}
+
+func (g *guestStat) markHot() {
+	g.Hot = nil
+	if g.CPU >= hotPct {
+		g.Hot = append(g.Hot, "cpu")
+	}
+	// A VM's QEMU keeps every page the guest ever touched, so from the
+	// host nearly every VM looks full. Only containers get flagged.
+	if g.Kind == "ct" && g.memPct() >= hotPct {
+		g.Hot = append(g.Hot, "mem")
+	}
+	if g.PPSOut >= hotPPS {
+		g.Hot = append(g.Hot, "pps")
+	}
+	if g.ConnsOut >= hotConns {
+		g.Hot = append(g.Hot, "conns")
+	}
+}
+
 func (s guestStat) memPct() float64 {
 	if s.MemMax == 0 {
 		return 0
@@ -42,6 +75,10 @@ func (s guestStat) memPct() float64 {
 }
 
 type snapshot struct {
+	Host      string      `json:"host"`
+	Cores     int         `json:"host_cores"`
+	Load      [3]float64  `json:"host_load"`
+	Uptime    float64     `json:"host_uptime"`
 	Guests    []guestStat `json:"guests"`
 	HostCPU   float64     `json:"host_cpu_pct"`
 	HostMem   uint64      `json:"host_mem"`
@@ -109,21 +146,7 @@ func (c *collector) collect() (snapshot, error) {
 	}
 
 	for i := range snap.Guests {
-		g := &snap.Guests[i]
-		if g.CPU >= hotPct {
-			g.Hot = append(g.Hot, "cpu")
-		}
-		// A VM's QEMU keeps every page the guest ever touched, so from the
-		// host nearly every VM looks full. Only containers get flagged.
-		if g.Kind == "ct" && g.memPct() >= hotPct {
-			g.Hot = append(g.Hot, "mem")
-		}
-		if g.PPSOut >= hotPPS {
-			g.Hot = append(g.Hot, "pps")
-		}
-		if g.ConnsOut >= hotConns {
-			g.Hot = append(g.Hot, "conns")
-		}
+		snap.Guests[i].markHot()
 	}
 
 	busy, total := pve.HostCPU()
@@ -131,6 +154,10 @@ func (c *collector) collect() (snapshot, error) {
 		snap.HostCPU = float64(delta(busy, c.prevBusy)) / float64(total-c.prevTotal) * 100
 	}
 	snap.HostTotal, snap.HostMem = pve.HostMem()
+	snap.Host, _ = os.Hostname()
+	snap.Cores = runtime.NumCPU()
+	snap.Load = pve.HostLoad()
+	snap.Uptime = pve.HostUptime()
 	snap.CTCount, snap.CTMax = pve.ConntrackUsage()
 
 	c.prev, c.prevAt, c.prevBusy, c.prevTotal = cur, now, busy, total
@@ -169,6 +196,9 @@ func sortGuests(gs []guestStat, k sortKey, reverse bool) {
 			return a.IORead+a.IOWrite > b.IORead+b.IOWrite
 		case byID:
 			return a.ID < b.ID
+		}
+		if a.CPU != b.CPU {
+			return a.CPU > b.CPU
 		}
 		return a.CPUCores > b.CPUCores
 	}
