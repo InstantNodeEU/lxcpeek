@@ -3,9 +3,9 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"io/fs"
 	"flag"
 	"fmt"
+	"io/fs"
 	"os"
 	"text/tabwriter"
 	"time"
