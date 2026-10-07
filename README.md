@@ -1,43 +1,39 @@
-<p align="center"><img src="assets/banner.png" alt="lxcpeek" width="100%"></p>
+# <img src="assets/logo.svg" width="28" alt=""> lxcpeek
 
-<p align="center">
-  <img src="https://img.shields.io/badge/license-MIT-f0883e?style=flat-square" alt="license MIT">
-  <img src="https://img.shields.io/badge/written%20in-Go-f0883e?style=flat-square" alt="Go">
-  <img src="https://img.shields.io/badge/runs%20on-Proxmox%20VE-f0883e?style=flat-square" alt="Proxmox VE">
-  <a href="https://github.com/instantnodeeu/lxcpeek/releases"><img src="https://img.shields.io/github/v/release/instantnodeeu/lxcpeek?style=flat-square&color=f0883e" alt="release"></a>
-  <a href="https://github.com/instantnodeeu/lxcpeek/stargazers"><img src="https://img.shields.io/github/stars/instantnodeeu/lxcpeek?style=flat-square&color=f0883e" alt="stars"></a>
-  <a href="https://github.com/instantnodeeu/lxcpeek/actions"><img src="https://img.shields.io/github/actions/workflow/status/instantnodeeu/lxcpeek/test.yml?style=flat-square&label=build&color=f0883e" alt="build"></a>
-  <a href="https://instantnode.eu"><img src="https://img.shields.io/badge/by-InstantNode-f0883e?style=flat-square" alt="by InstantNode"></a>
-</p>
+[![release](https://img.shields.io/github/v/release/instantnodeeu/lxcpeek?style=flat-square&color=f0883e)](https://github.com/instantnodeeu/lxcpeek/releases)
+[![build](https://img.shields.io/github/actions/workflow/status/instantnodeeu/lxcpeek/test.yml?style=flat-square&label=build)](https://github.com/instantnodeeu/lxcpeek/actions)
+[![license](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 
-top for the guests on a Proxmox VE node. One table with every container
-and VM: CPU, memory, network in bit/s and packets/s, disk IO and how many
-connections each guest has open. Guests that look wrong are painted red.
+top for the guests on a Proxmox VE node. Every container and VM in one
+table, with CPU, memory, bandwidth, packets/s, disk IO and open connections.
+The ones that look wrong are red.
+
+![lxcpeek](assets/tui.png)
 
 We host a lot of customer guests and the question at 3am is always the
-same: *which one is it?* The miner pinning 16 cores, the box scanning port
-23 across the internet, the one filling the conntrack table. The PVE web UI
+same: which one is it? The miner pinning 16 cores, the box scanning port 23
+across the internet, the one filling the conntrack table. The PVE web UI
 can tell you, one guest at a time. lxcpeek tells you in one screen.
 
-<p align="center"><img src="assets/tui.png" alt="lxcpeek" width="100%"></p>
-
-- **CPU** as a percentage of what the guest is allowed to use, so a 2 core
-  container at 100% stands out even on a 64 core host
-- **Memory** working set against the limit
-- **Network** out/in in bit/s and outgoing packets/s, seen from the guest
-- **Disk IO** read + write per second
-- **Connections** outgoing/incoming per guest from the conntrack table, plus
-  the host's conntrack fill level in the header
-- **Enter** on a guest shows where it connects to: top ports, top
-  destinations, top incoming ports, and a guess when it looks like a port
-  scan, outgoing spam or a mining pool
-
-<p align="center"><img src="assets/conns.png" alt="connections of one guest" width="100%"></p>
+| Column | |
+|---|---|
+| CPU | percent of the cores the guest is allowed to use, so a 2 core container at 100% stands out on a 64 core host |
+| MEM | working set against the limit |
+| OUT, IN | bit/s, seen from the guest |
+| PPS | packets per second the guest sends |
+| IO/s | disk read + write per second |
+| CONN | outgoing / incoming entries in the conntrack table |
+| HOT | why the guest is marked |
 
 A guest is marked hot when CPU (or memory, containers only) is at 90% of
 its allotment, it sends more than 20k packets/s or has more than 1000
 outgoing connections. VM memory is never flagged: QEMU keeps every page the
 guest ever touched, so from the host almost every VM looks full.
+
+Enter on a guest shows where it connects to, by port and by destination,
+and says so when it looks like a port scan, outgoing spam or a mining pool.
+
+![connections of one guest](assets/conns.png)
 
 ## Report
 
@@ -45,7 +41,7 @@ guest ever touched, so from the host almost every VM looks full.
 TUI: the node, the hot guests with the reason and where they connect to,
 then every guest.
 
-<p align="center"><img src="assets/report.png" alt="lxcpeek -once" width="820"></p>
+![lxcpeek -once](assets/report.png)
 
 Colors go away when the output is not a terminal or `NO_COLOR` is set, so
 it pastes cleanly into a ticket or an abuse report.
@@ -131,9 +127,9 @@ make test
 make dist     # static linux amd64 + arm64 in dist/
 ```
 
-The screenshots are made up guests on documentation IP ranges, not a real
-node.
+The guests in the screenshots are made up and use documentation IP ranges.
 
 ## License
 
-MIT
+MIT. Written at [InstantNode](https://instantnode.eu), where it runs on our
+own nodes.
