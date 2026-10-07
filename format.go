@@ -67,13 +67,17 @@ func cells(g guestStat) []string {
 	if g.MemMax > 0 {
 		mem += "/" + human(float64(g.MemMax))
 	}
+	io := "-"
+	if g.IOKnown {
+		io = human(g.IORead + g.IOWrite)
+	}
 	return []string{
 		fmt.Sprint(g.ID), g.Kind, g.Name, ips(g.IPs),
 		fmt.Sprintf("%.0f%%", g.CPU),
 		mem,
 		bits(g.Out), bits(g.In),
 		count(g.PPSOut),
-		human(g.IORead + g.IOWrite),
+		io,
 		fmt.Sprintf("%d/%d", g.ConnsOut, g.ConnsIn),
 		strings.Join(g.Hot, " "),
 	}

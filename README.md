@@ -29,7 +29,8 @@ can tell you, one guest at a time. lxcpeek tells you in one screen.
   destinations, top incoming ports. A scanner looks very different from a
   web server.
 
-A guest is marked hot when CPU or memory is at 90% of its allotment, it sends
+A guest is marked hot when CPU (or memory, containers only) is at 90% of its
+allotment, it sends
 more than 20k packets/s or has more than 1000 outgoing connections.
 
 ## How it works
@@ -40,7 +41,7 @@ already has:
 | | |
 |---|---|
 | guests, names, limits, IPs | `/etc/pve/lxc/*.conf`, `/etc/pve/qemu-server/*.conf`, ipfilter ipsets in `/etc/pve/firewall/<id>.fw` |
-| CPU, memory, IO | cgroup v2, `/sys/fs/cgroup/lxc/<id>` and `qemu.slice/<id>.scope` |
+| CPU, memory, IO | cgroup v2, `/sys/fs/cgroup/lxc/<id>` and `qemu.slice/<id>.scope`; VM disk IO from `/proc/<qemu pid>/io` |
 | network | host side ports `veth<id>i<n>` and `tap<id>i<n>` |
 | connections | `/proc/net/nf_conntrack`, or `conntrack -L` if the kernel has no procfs file |
 

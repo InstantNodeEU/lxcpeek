@@ -17,6 +17,7 @@ var (
 	Cgroup = "/sys/fs/cgroup"
 	SysNet = "/sys/class/net"
 	Proc   = "/proc"
+	Run    = "/var/run"
 )
 
 type Guest struct {

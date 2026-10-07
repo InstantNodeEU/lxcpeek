@@ -28,7 +28,7 @@ func main() {
 	}
 	// ponytail: one prefix for all roots, enough to point it at a copied tree
 	if r := os.Getenv("LXCPEEK_ROOT"); r != "" {
-		pve.EtcPVE, pve.Cgroup, pve.SysNet, pve.Proc = r+pve.EtcPVE, r+pve.Cgroup, r+pve.SysNet, r+pve.Proc
+		pve.EtcPVE, pve.Cgroup, pve.SysNet, pve.Proc, pve.Run = r+pve.EtcPVE, r+pve.Cgroup, r+pve.SysNet, r+pve.Proc, r+pve.Run
 	}
 	if _, err := os.Stat(pve.EtcPVE); err != nil {
 		fmt.Fprintln(os.Stderr, "lxcpeek: /etc/pve not found, run this on a Proxmox VE node")

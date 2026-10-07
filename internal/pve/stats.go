@@ -16,6 +16,7 @@ type Sample struct {
 	MemMax  uint64 // cgroup limit, 0 if none
 	IORead  uint64
 	IOWrite uint64
+	IOKnown bool
 	// Seen from the guest: what the host port receives the guest sent.
 	NetOut, NetIn uint64
 	PktOut, PktIn uint64
@@ -44,6 +45,7 @@ func ReadSample(g Guest, ifaces []string) Sample {
 	s.MemMax = readUint(filepath.Join(dir, "memory.max")) // "max" parses to 0
 
 	if b, err := os.ReadFile(filepath.Join(dir, "io.stat")); err == nil {
+		s.IOKnown = true
 		for _, f := range strings.Fields(string(b)) {
 			k, v, ok := strings.Cut(f, "=")
 			if !ok {
@@ -55,6 +57,17 @@ func ReadSample(g Guest, ifaces []string) Sample {
 				s.IORead += n
 			case "wbytes":
 				s.IOWrite += n
+			}
+		}
+	}
+
+	if !s.IOKnown && g.Kind == "vm" {
+		// PVE does not enable the io controller on qemu.slice, but the
+		// QEMU process does all the disk IO of the VM itself.
+		pid := strings.TrimSpace(readString(filepath.Join(Run, "qemu-server", strconv.Itoa(g.ID)+".pid")))
+		if pid != "" {
+			if m := keyed(filepath.Join(Proc, pid, "io")); len(m) > 0 {
+				s.IORead, s.IOWrite, s.IOKnown = m["read_bytes:"], m["write_bytes:"], true
 			}
 		}
 	}
@@ -92,6 +105,11 @@ func guestIface(name string, id int) bool {
 		}
 	}
 	return false
+}
+
+func readString(path string) string {
+	b, _ := os.ReadFile(path)
+	return string(b)
 }
 
 func readUint(path string) uint64 {

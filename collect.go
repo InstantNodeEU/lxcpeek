@@ -28,6 +28,7 @@ type guestStat struct {
 	PPSOut   float64  `json:"pps_out"`
 	IORead   float64  `json:"io_read"`
 	IOWrite  float64  `json:"io_write"`
+	IOKnown  bool     `json:"io_known"`
 	ConnsOut int      `json:"conns_out"`
 	ConnsIn  int      `json:"conns_in"`
 	Hot      []string `json:"hot,omitempty"`
@@ -73,7 +74,7 @@ func (c *collector) collect() (snapshot, error) {
 	for i, g := range guests {
 		s := pve.ReadSample(g, ifaces)
 		cur[g.ID] = s
-		st := guestStat{Guest: g, Running: s.Running, Mem: s.Mem, MemMax: s.MemMax}
+		st := guestStat{Guest: g, Running: s.Running, Mem: s.Mem, MemMax: s.MemMax, IOKnown: s.IOKnown}
 		if st.MemMax == 0 || (g.MemLimit > 0 && g.MemLimit < st.MemMax) {
 			st.MemMax = g.MemLimit
 		}
@@ -112,7 +113,9 @@ func (c *collector) collect() (snapshot, error) {
 		if g.CPU >= hotPct {
 			g.Hot = append(g.Hot, "cpu")
 		}
-		if g.memPct() >= hotPct {
+		// A VM's QEMU keeps every page the guest ever touched, so from the
+		// host nearly every VM looks full. Only containers get flagged.
+		if g.Kind == "ct" && g.memPct() >= hotPct {
 			g.Hot = append(g.Hot, "mem")
 		}
 		if g.PPSOut >= hotPPS {
