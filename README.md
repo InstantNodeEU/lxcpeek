@@ -86,10 +86,13 @@ are hints for where to look, not proof.
 On the PVE node:
 
 ```sh
-curl -Lo lxcpeek https://github.com/instantnodeeu/lxcpeek/releases/latest/download/lxcpeek-linux-amd64
-chmod +x lxcpeek
-mv lxcpeek /usr/local/bin/
+curl -fsSL https://raw.githubusercontent.com/instantnodeeu/lxcpeek/main/install.sh | sh
 ```
+
+As root this puts the latest release in `/usr/local/bin` after checking its sha256.
+Run the same line again to update, `VERSION=v0.2.0` pins a release, `BINDIR`
+picks another directory. The binaries are also on the
+[releases](https://github.com/instantnodeeu/lxcpeek/releases) page.
 
 Or with Go 1.24+:
 
